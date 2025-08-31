@@ -1,15 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { Customer } from '../../types';
 import { supabase } from '../../lib/supabase';
-import { PlusIcon, PencilIcon, EyeIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { 
+  PlusIcon, 
+  PencilIcon, 
+  EyeIcon, 
+  MagnifyingGlassIcon, 
+  UsersIcon,
+  DocumentTextIcon,
+  CreditCardIcon
+} from '@heroicons/react/24/outline';
 import CustomerForm from './CustomerForm';
+import CustomerStatementModal from './CustomerStatementModal';
 
 const CustomerManagement: React.FC = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [showStatementModal, setShowStatementModal] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState('all');
 
   useEffect(() => {
     fetchCustomers();
@@ -35,15 +47,28 @@ const CustomerManagement: React.FC = () => {
     customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (customer.phone && customer.phone.includes(searchTerm)) ||
     (customer.email && customer.email.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  ).filter(customer => {
+    if (filterType === 'vip') return customer.customer_type === 'vip';
+    if (filterType === 'wholesale') return customer.customer_type === 'wholesale';
+    if (filterType === 'with_balance') return customer.current_balance > 0;
+    return true;
+  });
 
+  const totalBalance = customers.reduce((sum, customer) => sum + customer.current_balance, 0);
+  const vipCustomers = customers.filter(c => c.customer_type === 'vip').length;
+  const wholesaleCustomers = customers.filter(c => c.customer_type === 'wholesale').length;
   return (
     <div className="p-6" dir="rtl">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-2xl font-bold text-gray-800">إدارة العملاء</h2>
-          <p className="text-gray-600">إجمالي العملاء: {customers.length}</p>
+          <div className="flex items-center space-x-4 space-x-reverse text-sm text-gray-600">
+            <span>إجمالي: {customers.length}</span>
+            <span>مميز: {vipCustomers}</span>
+            <span>جملة: {wholesaleCustomers}</span>
+            <span className="text-red-600">إجمالي الديون: {totalBalance.toFixed(2)} ر.س</span>
+          </div>
         </div>
         <button
           onClick={() => setShowForm(true)}
@@ -55,18 +80,33 @@ const CustomerManagement: React.FC = () => {
       </div>
 
       {/* Search */}
-      <div className="mb-6">
-        <div className="relative max-w-md">
-          <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-            <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+      <div className="mb-6 flex items-center space-x-4 space-x-reverse">
+        <div className="flex-1 max-w-md">
+          <div className="relative">
+            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+              <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+            </div>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="block w-full pr-10 pl-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="البحث في العملاء..."
+            />
           </div>
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="block w-full pr-10 pl-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="البحث في العملاء..."
-          />
+        </div>
+        
+        <div>
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="all">جميع العملاء</option>
+            <option value="vip">عملاء مميزون</option>
+            <option value="wholesale">عملاء جملة</option>
+            <option value="with_balance">لديهم ديون</option>
+          </select>
         </div>
       </div>
 
@@ -137,9 +177,15 @@ const CustomerManagement: React.FC = () => {
                   <PencilIcon className="w-4 h-4 ml-1" />
                   تعديل
                 </button>
-                <button className="flex-1 bg-gray-50 text-gray-600 py-2 px-3 rounded-lg hover:bg-gray-100 transition-colors duration-200 flex items-center justify-center text-sm">
-                  <EyeIcon className="w-4 h-4 ml-1" />
-                  عرض
+                <button 
+                  onClick={() => {
+                    setSelectedCustomer(customer);
+                    setShowStatementModal(true);
+                  }}
+                  className="flex-1 bg-gray-50 text-gray-600 py-2 px-3 rounded-lg hover:bg-gray-100 transition-colors duration-200 flex items-center justify-center text-sm"
+                >
+                  <DocumentTextIcon className="w-4 h-4 ml-1" />
+                  كشف حساب
                 </button>
               </div>
             </div>
@@ -159,6 +205,17 @@ const CustomerManagement: React.FC = () => {
             fetchCustomers();
             setShowForm(false);
             setEditingCustomer(null);
+          }}
+        />
+      )}
+
+      {/* Customer Statement Modal */}
+      {showStatementModal && selectedCustomer && (
+        <CustomerStatementModal
+          customer={selectedCustomer}
+          onClose={() => {
+            setShowStatementModal(false);
+            setSelectedCustomer(null);
           }}
         />
       )}

@@ -202,4 +202,4 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onClose, onSave }
   );
 };
 
-export default CustomerManagement;
+export default CustomerForm;

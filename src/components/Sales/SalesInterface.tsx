@@ -1,12 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { MagnifyingGlassIcon, QrCodeIcon, UserIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { 
+  MagnifyingGlassIcon, 
+  QrCodeIcon, 
+  UserIcon, 
+  XMarkIcon, 
+  ClockIcon, 
+  ArrowUturnLeftIcon, 
+  DocumentTextIcon,
+  BanknotesIcon 
+} from '@heroicons/react/24/outline';
 import { usePOS } from '../../contexts/POSContext';
 import { Product, Customer } from '../../types';
 import { supabase } from '../../lib/supabase';
 import Cart from './Cart';
 import ProductGrid from './ProductGrid';
+import QuickQuantityModal from './QuickQuantityModal';
 import CustomerSelector from './CustomerSelector';
 import PaymentModal from './PaymentModal';
+import HoldSalesModal from './HoldSalesModal';
+import ReturnModal from './ReturnModal';
+import QuotationModal from './QuotationModal';
+import CashRegisterModal from './CashRegisterModal';
 
 const SalesInterface: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -14,6 +28,12 @@ const SalesInterface: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showQuantityModal, setShowQuantityModal] = useState(false);
+  const [showHoldModal, setShowHoldModal] = useState(false);
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [showQuotationModal, setShowQuotationModal] = useState(false);
+  const [showCashRegisterModal, setShowCashRegisterModal] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const { cart, customer, addToCart, setCustomer } = usePOS();
 
   useEffect(() => {
@@ -54,6 +74,19 @@ const SalesInterface: React.FC = () => {
     }
   };
 
+  const handleProductSelect = (product: Product) => {
+    setSelectedProduct(product);
+    setShowQuantityModal(true);
+  };
+
+  const handleQuantityConfirm = (quantity: number) => {
+    if (selectedProduct) {
+      addToCart(selectedProduct, quantity);
+    }
+    setShowQuantityModal(false);
+    setSelectedProduct(null);
+  };
+
   return (
     <div className="flex h-screen bg-gray-50" dir="rtl">
       {/* Main Sales Area */}
@@ -63,6 +96,40 @@ const SalesInterface: React.FC = () => {
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-bold text-gray-800">شاشة البيع</h2>
             <div className="flex items-center space-x-4 space-x-reverse">
+              {/* Action Buttons */}
+              <button
+                onClick={() => setShowCashRegisterModal(true)}
+                className="bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 transition-colors duration-200 flex items-center"
+              >
+                <BanknotesIcon className="w-5 h-5 ml-1" />
+                الصندوق
+              </button>
+              
+              <button
+                onClick={() => setShowQuotationModal(true)}
+                disabled={cart.length === 0}
+                className="bg-purple-600 text-white px-3 py-2 rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center"
+              >
+                <DocumentTextIcon className="w-5 h-5 ml-1" />
+                عرض سعر
+              </button>
+              
+              <button
+                onClick={() => setShowReturnModal(true)}
+                className="bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 transition-colors duration-200 flex items-center"
+              >
+                <ArrowUturnLeftIcon className="w-5 h-5 ml-1" />
+                إرجاع
+              </button>
+              
+              <button
+                onClick={() => setShowHoldModal(true)}
+                className="bg-orange-600 text-white px-3 py-2 rounded-lg hover:bg-orange-700 transition-colors duration-200 flex items-center"
+              >
+                <ClockIcon className="w-5 h-5 ml-1" />
+                تعليق
+              </button>
+
               {customer && (
                 <div className="flex items-center bg-blue-50 px-4 py-2 rounded-lg">
                   <UserIcon className="w-5 h-5 text-blue-600 ml-2" />
@@ -110,7 +177,7 @@ const SalesInterface: React.FC = () => {
           <ProductGrid 
             products={filteredProducts} 
             loading={loading}
-            onProductSelect={addToCart}
+            onProductSelect={handleProductSelect}
           />
         </div>
       </div>
@@ -121,6 +188,17 @@ const SalesInterface: React.FC = () => {
       </div>
 
       {/* Modals */}
+      {showQuantityModal && selectedProduct && (
+        <QuickQuantityModal
+          product={selectedProduct}
+          onClose={() => {
+            setShowQuantityModal(false);
+            setSelectedProduct(null);
+          }}
+          onConfirm={handleQuantityConfirm}
+        />
+      )}
+
       {showCustomerModal && (
         <CustomerSelector
           onClose={() => setShowCustomerModal(false)}
@@ -134,6 +212,30 @@ const SalesInterface: React.FC = () => {
       {showPaymentModal && (
         <PaymentModal
           onClose={() => setShowPaymentModal(false)}
+        />
+      )}
+
+      {showHoldModal && (
+        <HoldSalesModal
+          onClose={() => setShowHoldModal(false)}
+        />
+      )}
+
+      {showReturnModal && (
+        <ReturnModal
+          onClose={() => setShowReturnModal(false)}
+        />
+      )}
+
+      {showQuotationModal && (
+        <QuotationModal
+          onClose={() => setShowQuotationModal(false)}
+        />
+      )}
+
+      {showCashRegisterModal && (
+        <CashRegisterModal
+          onClose={() => setShowCashRegisterModal(false)}
         />
       )}
     </div>

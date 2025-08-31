@@ -1,6 +1,6 @@
 import React from 'react';
 import { usePOS } from '../../contexts/POSContext';
-import { MinusIcon, PlusIcon, TrashIcon, TagIcon, PercentIcon } from '@heroicons/react/24/outline';
+import { MinusIcon, PlusIcon, TrashIcon, TagIcon, PercentIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 interface CartProps {
   onCheckout: () => void;
@@ -52,6 +52,7 @@ const Cart: React.FC<CartProps> = ({ onCheckout }) => {
                 <div className="flex-1">
                   <h4 className="font-medium text-gray-800">{item.product.name_ar}</h4>
                   <p className="text-sm text-gray-500">{item.product.sku}</p>
+                  <p className="text-xs text-gray-400">{item.unit_price.toFixed(2)} ر.س × {item.quantity}</p>
                 </div>
                 <button
                   onClick={() => removeFromCart(item.product.id)}
@@ -69,10 +70,17 @@ const Cart: React.FC<CartProps> = ({ onCheckout }) => {
                   >
                     <MinusIcon className="w-4 h-4" />
                   </button>
-                  <span className="w-8 text-center font-medium">{item.quantity}</span>
+                  <input
+                    type="number"
+                    value={item.quantity}
+                    onChange={(e) => updateCartItemQuantity(item.product.id, Number(e.target.value))}
+                    className="w-16 text-center font-medium border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    min="1"
+                  />
                   <button
                     onClick={() => updateCartItemQuantity(item.product.id, item.quantity + 1)}
-                    className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center hover:bg-blue-700 transition-colors"
+                    disabled={item.quantity >= item.product.stock_quantity}
+                    className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     <PlusIcon className="w-4 h-4" />
                   </button>
@@ -81,9 +89,28 @@ const Cart: React.FC<CartProps> = ({ onCheckout }) => {
                   <p className="font-semibold text-gray-800">
                     {item.total_price.toFixed(2)} ر.س
                   </p>
-                  <p className="text-sm text-gray-500">
-                    {item.unit_price.toFixed(2)} ر.س/وحدة
-                  </p>
+                  {item.discount_amount > 0 && (
+                    <p className="text-xs text-red-500">
+                      خصم: -{item.discount_amount.toFixed(2)} ر.س
+                    </p>
+                  )}
+                </div>
+              </div>
+              
+              {/* Item Discount */}
+              <div className="mt-2 pt-2 border-t border-gray-200">
+                <div className="flex items-center space-x-2 space-x-reverse">
+                  <input
+                    type="number"
+                    value={item.discount_amount}
+                    onChange={(e) => {
+                      // Update item discount logic would go here
+                      console.log('Item discount:', e.target.value);
+                    }}
+                    className="flex-1 px-2 py-1 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500"
+                    placeholder="خصم الصنف"
+                  />
+                  <span className="text-xs text-gray-500">ر.س</span>
                 </div>
               </div>
             </div>
@@ -153,25 +180,15 @@ const Cart: React.FC<CartProps> = ({ onCheckout }) => {
           
           <button
             onClick={onCheckout}
-            className="w-full bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all duration-200 font-medium"
+            disabled={cart.length === 0}
+            className="w-full bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium"
           >
             إتمام البيع
           </button>
         </div>
       )}
-
-      {/* Customer Modal */}
-      {showCustomerModal && (
-        <CustomerSelector
-          onClose={() => setShowCustomerModal(false)}
-          onSelectCustomer={(customer) => {
-            setCustomer(customer);
-            setShowCustomerModal(false);
-          }}
-        />
-      )}
     </div>
   );
 };
 
-export default SalesInterface;
+export default Cart;

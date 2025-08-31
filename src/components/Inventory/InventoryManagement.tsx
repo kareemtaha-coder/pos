@@ -1,15 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { Product } from '../../types';
 import { supabase } from '../../lib/supabase';
-import { PlusIcon, PencilIcon, TrashIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { 
+  PlusIcon, 
+  PencilIcon, 
+  TrashIcon, 
+  ExclamationTriangleIcon, 
+  AdjustmentsHorizontalIcon,
+  DocumentTextIcon,
+  ArrowPathIcon
+ } from '@heroicons/react/24/outline';
 import ProductForm from './ProductForm';
+import StockAdjustmentModal from './StockAdjustmentModal';
 
 const InventoryManagement: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [showAdjustmentModal, setShowAdjustmentModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState('all');
 
   useEffect(() => {
     fetchProducts();
@@ -52,9 +63,16 @@ const InventoryManagement: React.FC = () => {
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     product.name_ar.toLowerCase().includes(searchTerm.toLowerCase()) ||
     product.sku.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  ).filter(product => {
+    if (filterType === 'low_stock') return product.stock_quantity <= product.min_stock_level;
+    if (filterType === 'out_of_stock') return product.stock_quantity === 0;
+    if (filterType === 'active') return product.is_active;
+    if (filterType === 'inactive') return !product.is_active;
+    return true;
+  });
 
   const lowStockProducts = products.filter(p => p.stock_quantity <= p.min_stock_level);
+  const outOfStockProducts = products.filter(p => p.stock_quantity === 0);
 
   return (
     <div className="p-6" dir="rtl">
@@ -62,15 +80,29 @@ const InventoryManagement: React.FC = () => {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-2xl font-bold text-gray-800">إدارة المخزون</h2>
-          <p className="text-gray-600">إجمالي المنتجات: {products.length}</p>
+          <div className="flex items-center space-x-4 space-x-reverse text-sm text-gray-600">
+            <span>إجمالي: {products.length}</span>
+            <span className="text-yellow-600">نواقص: {lowStockProducts.length}</span>
+            <span className="text-red-600">نفدت: {outOfStockProducts.length}</span>
+          </div>
         </div>
-        <button
-          onClick={() => setShowForm(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center"
-        >
-          <PlusIcon className="w-5 h-5 ml-1" />
-          منتج جديد
-        </button>
+        <div className="flex items-center space-x-3 space-x-reverse">
+          <button
+            onClick={() => setShowAdjustmentModal(true)}
+            className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors duration-200 flex items-center"
+          >
+            <AdjustmentsHorizontalIcon className="w-5 h-5 ml-1" />
+            تسوية المخزون
+          </button>
+          
+          <button
+            onClick={() => setShowForm(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center"
+          >
+            <PlusIcon className="w-5 h-5 ml-1" />
+            منتج جديد
+          </button>
+        </div>
       </div>
 
       {/* Low Stock Alert */}
@@ -89,14 +121,30 @@ const InventoryManagement: React.FC = () => {
       )}
 
       {/* Search */}
-      <div className="mb-6">
-        <input
-          type="text"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full max-w-md px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          placeholder="البحث في المنتجات..."
-        />
+      <div className="mb-6 flex items-center space-x-4 space-x-reverse">
+        <div className="flex-1 max-w-md">
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="البحث في المنتجات..."
+          />
+        </div>
+        
+        <div>
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="all">جميع المنتجات</option>
+            <option value="low_stock">نواقص المخزون</option>
+            <option value="out_of_stock">نفدت الكمية</option>
+            <option value="active">المنتجات النشطة</option>
+            <option value="inactive">المنتجات غير النشطة</option>
+          </select>
+        </div>
       </div>
 
       {/* Products Table */}
@@ -156,10 +204,16 @@ const InventoryManagement: React.FC = () => {
                     <td className="px-6 py-4">
                       <span className={`text-sm font-medium ${
                         product.stock_quantity <= product.min_stock_level 
-                          ? 'text-red-600' 
+                          ? product.stock_quantity === 0 ? 'text-red-600' : 'text-yellow-600'
                           : 'text-gray-900'
                       }`}>
                         {product.stock_quantity} {product.unit}
+                        {product.stock_quantity === 0 && (
+                          <span className="block text-xs text-red-500">نفدت الكمية</span>
+                        )}
+                        {product.stock_quantity > 0 && product.stock_quantity <= product.min_stock_level && (
+                          <span className="block text-xs text-yellow-500">نقص في المخزون</span>
+                        )}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -210,6 +264,17 @@ const InventoryManagement: React.FC = () => {
             fetchProducts();
             setShowForm(false);
             setEditingProduct(null);
+          }}
+        />
+      )}
+
+      {/* Stock Adjustment Modal */}
+      {showAdjustmentModal && (
+        <StockAdjustmentModal
+          onClose={() => setShowAdjustmentModal(false)}
+          onComplete={() => {
+            fetchProducts();
+            setShowAdjustmentModal(false);
           }}
         />
       )}
