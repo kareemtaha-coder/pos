@@ -96,3 +96,70 @@ export interface PaymentMethod {
   amount: number;
   reference?: string;
 }
+
+export interface Quotation {
+  id: string;
+  quotation_number: string;
+  customer_id?: string;
+  user_id: string;
+  subtotal: number;
+  tax_amount: number;
+  total_amount: number;
+  valid_until: string;
+  notes?: string;
+  status: 'pending' | 'accepted' | 'rejected' | 'expired';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface QuotationItem {
+  id: string;
+  quotation_id: string;
+  product_id: string;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+  created_at: string;
+}
+
+export interface StockAdjustment {
+  id: string;
+  product_id: string;
+  adjustment_type: 'add' | 'subtract';
+  quantity: number;
+  reason: string;
+  old_quantity: number;
+  new_quantity: number;
+  user_id: string;
+  created_at: string;
+}
+
+export interface CashRegisterTransaction {
+  id: string;
+  type: 'opening' | 'closing' | 'deposit' | 'withdrawal';
+  amount: number;
+  description: string;
+  user_id: string;
+  created_at: string;
+}
+
+export interface CustomerPayment {
+  id: string;
+  customer_id: string;
+  amount: number;
+  payment_method: 'cash' | 'card' | 'transfer';
+  description?: string;
+  reference_number?: string;
+  user_id: string;
+  created_at: string;
+}
+
+export interface Return {
+  id: string;
+  original_sale_id: string;
+  return_amount: number;
+  reason: string;
+  status: 'pending' | 'completed' | 'cancelled';
+  user_id: string;
+  created_at: string;
+}

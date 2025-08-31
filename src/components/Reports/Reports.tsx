@@ -3,7 +3,10 @@ import {
   ChartBarIcon, 
   DocumentChartBarIcon, 
   CalendarIcon, 
-  CurrencyDollarIcon 
+  CurrencyDollarIcon,
+  TrophyIcon,
+  UsersIcon,
+  CubeIcon
 } from '@heroicons/react/24/outline';
 import { supabase } from '../../lib/supabase';
 import { format } from 'date-fns';
@@ -16,9 +19,13 @@ const Reports: React.FC = () => {
   });
   const [reportType, setReportType] = useState('daily');
   const [loading, setLoading] = useState(false);
+  const [topProducts, setTopProducts] = useState<any[]>([]);
+  const [topCustomers, setTopCustomers] = useState<any[]>([]);
 
   useEffect(() => {
     fetchSalesReport();
+    fetchTopProducts();
+    fetchTopCustomers();
   }, [dateRange, reportType]);
 
   const fetchSalesReport = async () => {
@@ -46,6 +53,87 @@ const Reports: React.FC = () => {
       console.error('Error fetching sales report:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchTopProducts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('sale_items')
+        .select(`
+          product_id,
+          quantity,
+          total_price,
+          products (name_ar, sku),
+          sales!inner (created_at)
+        `)
+        .gte('sales.created_at', dateRange.startDate + 'T00:00:00.000Z')
+        .lte('sales.created_at', dateRange.endDate + 'T23:59:59.999Z');
+
+      if (error) throw error;
+
+      // Group by product and calculate totals
+      const productSales = (data || []).reduce((acc: any, item) => {
+        const productId = item.product_id;
+        if (!acc[productId]) {
+          acc[productId] = {
+            product: item.products,
+            totalQuantity: 0,
+            totalRevenue: 0
+          };
+        }
+        acc[productId].totalQuantity += item.quantity;
+        acc[productId].totalRevenue += item.total_price;
+        return acc;
+      }, {});
+
+      const sortedProducts = Object.values(productSales)
+        .sort((a: any, b: any) => b.totalRevenue - a.totalRevenue)
+        .slice(0, 5);
+
+      setTopProducts(sortedProducts);
+    } catch (error) {
+      console.error('Error fetching top products:', error);
+    }
+  };
+
+  const fetchTopCustomers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('sales')
+        .select(`
+          customer_id,
+          total_amount,
+          customers (name)
+        `)
+        .not('customer_id', 'is', null)
+        .gte('created_at', dateRange.startDate + 'T00:00:00.000Z')
+        .lte('created_at', dateRange.endDate + 'T23:59:59.999Z');
+
+      if (error) throw error;
+
+      // Group by customer and calculate totals
+      const customerSales = (data || []).reduce((acc: any, sale) => {
+        const customerId = sale.customer_id;
+        if (!acc[customerId]) {
+          acc[customerId] = {
+            customer: sale.customers,
+            totalAmount: 0,
+            salesCount: 0
+          };
+        }
+        acc[customerId].totalAmount += sale.total_amount;
+        acc[customerId].salesCount += 1;
+        return acc;
+      }, {});
+
+      const sortedCustomers = Object.values(customerSales)
+        .sort((a: any, b: any) => b.totalAmount - a.totalAmount)
+        .slice(0, 5);
+
+      setTopCustomers(sortedCustomers);
+    } catch (error) {
+      console.error('Error fetching top customers:', error);
     }
   };
 
@@ -253,6 +341,78 @@ const Reports: React.FC = () => {
               )}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* Top Products and Customers */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
+        {/* Top Products */}
+        <div className="bg-white rounded-lg shadow">
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex items-center">
+              <TrophyIcon className="w-6 h-6 text-yellow-600 ml-2" />
+              <h3 className="text-lg font-semibold text-gray-800">أفضل المنتجات مبيعاً</h3>
+            </div>
+          </div>
+          <div className="p-6">
+            {topProducts.length === 0 ? (
+              <p className="text-center text-gray-500">لا توجد بيانات</p>
+            ) : (
+              <div className="space-y-4">
+                {topProducts.map((item: any, index) => (
+                  <div key={index} className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <span className="w-6 h-6 bg-yellow-100 text-yellow-800 rounded-full flex items-center justify-center text-sm font-bold ml-3">
+                        {index + 1}
+                      </span>
+                      <div>
+                        <p className="font-medium text-gray-800">{item.product.name_ar}</p>
+                        <p className="text-sm text-gray-600">{item.product.sku}</p>
+                      </div>
+                    </div>
+                    <div className="text-left">
+                      <p className="font-semibold text-blue-600">{item.totalRevenue.toFixed(2)} ر.س</p>
+                      <p className="text-sm text-gray-600">{item.totalQuantity} وحدة</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Top Customers */}
+        <div className="bg-white rounded-lg shadow">
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex items-center">
+              <UsersIcon className="w-6 h-6 text-purple-600 ml-2" />
+              <h3 className="text-lg font-semibold text-gray-800">أفضل العملاء</h3>
+            </div>
+          </div>
+          <div className="p-6">
+            {topCustomers.length === 0 ? (
+              <p className="text-center text-gray-500">لا توجد بيانات</p>
+            ) : (
+              <div className="space-y-4">
+                {topCustomers.map((item: any, index) => (
+                  <div key={index} className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <span className="w-6 h-6 bg-purple-100 text-purple-800 rounded-full flex items-center justify-center text-sm font-bold ml-3">
+                        {index + 1}
+                      </span>
+                      <div>
+                        <p className="font-medium text-gray-800">{item.customer.name}</p>
+                        <p className="text-sm text-gray-600">{item.salesCount} فاتورة</p>
+                      </div>
+                    </div>
+                    <div className="text-left">
+                      <p className="font-semibold text-purple-600">{item.totalAmount.toFixed(2)} ر.س</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
